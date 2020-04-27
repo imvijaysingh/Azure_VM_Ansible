@@ -1,0 +1,91 @@
+###1. First step in creation of Azure VM using Ansible reference from https://docs.microsoft.com/en-us/azure/developer/ansible/vm-configure
+
+- name: Creation of Azure Virtual Machine
+  hosts: localhost
+  connection: local
+  tasks:
+
+##2. Creation a resource group
+
+- name: Creation resource group
+  azure_rm_resourcegroup:
+    name: PersonalResourceGroup
+    location: centralindia
+
+	
+##3. Creation a virtual network
+### When you Create an Azure virtual machine, you must Create a virtual network
+
+- name: Create virtual network
+  azure_rm_virtualnetwork:
+    resource_group: PersonalResourceGroup
+    name: PersonalVnet
+    address_prefixes: "10.0.0.0/16"
+
+##4. Resources required subnet within Virtual Network
+
+- name: Add subnet
+  azure_rm_subnet:
+    resource_group: PersonalResourceGroup
+    name: PersonalSubnet
+    address_prefix: "10.1.1.0/24"
+    virtual_network: PersonalVnet
+	
+##5. Creation of public IP address
+### Public IP for Inbound communication
+
+- name: Creation of public IP address
+  azure_rm_publicipaddress:
+    resource_group: PersonalResourceGroup
+    allocation_method: Static
+    name: PersonalPublicIP
+
+##6. Creation of a network security group
+### NSG filters netork traffic in Azure
+
+- name: Creation of NSG that allows SSH
+  azure_rm_securitygroup:
+    resource_group: PersonalResourceGroup
+    name: PersonalNetworkSecurityGroup
+    rules:
+      - name: SSH
+        protocol: Tcp
+        destination_port_range: 22
+        access: Allow
+        priority: 1001
+        direction: Inbound
+		
+##7. Creation of virtual network interface card
+### Virtual NIC connect to Network
+
+- name: Creation of virtual network interface card
+  azure_rm_networkinterface:
+    resource_group: PersonalResourceGroup
+    name: PersonalNIC
+    virtual_network: PersonalVnet
+    subnet: PersonalSubnet
+    public_ip_name: PersonalPublicIP
+    security_group: PersonalNetworkSecurityGroup
+	
+##8. Creation of VM
+
+- name: Creation of VM
+  azure_rm_virtualmachine:
+    resource_group: PersonalResourceGroup
+    name: PersonalVM
+    vm_size: Standard_DS1_v2
+    admin_username: adminuser
+    ssh_password_enabled: false
+    ssh_public_keys:
+      - path: /home/adminuser/.ssh/authorized_keys
+        key_data: <your-key-data>
+    network_interfaces: PersonalNIC
+    image:
+      offer: RHEL
+      publisher: RedHat
+      sku: '7-RAW'
+      version: latest
+      
+      
+      
+   ####### Run the yml file : ansible-playbook VirtualMachineCreation.yml
